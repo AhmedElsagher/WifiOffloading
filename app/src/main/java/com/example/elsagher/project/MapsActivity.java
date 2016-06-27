@@ -24,12 +24,15 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
-    private   View mymarkerview;
+    private View mymarkerview;
+    private ArrayList<Location> AccessPointsList = new ArrayList<>();
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -39,6 +42,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+        AccessPointsList =  getIntent().getExtras().getParcelableArrayList("tag");
+        for (int i = 0; i < AccessPointsList.size(); i++) {
+            Log.e("tag2",AccessPointsList.get(i).getLatitude()+" lat");
+        }
     }
 
 
@@ -66,17 +73,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             myLocation = locationManager.getLastKnownLocation(provider);
 
         }
+        for (int i = 0; i < AccessPointsList.size(); i++) {
+            mMap.addMarker(new MarkerOptions().
+                position(new LatLng(AccessPointsList.get(i).getLatitude(), AccessPointsList.get(i).getLongitude()))
+                .title("wifi")
+                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
-        LatLng AC = new LatLng(30.040747, 31.246340);
+        }
+
         LatLng sydney = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(sydney).title("Marker in Sydney"));
-        mMap.addMarker(new MarkerOptions().position(AC).title("wifi").snippet("This is my test app").icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+        mMap.addMarker(new MarkerOptions().position(sydney).title("ur position"));
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 15));
         mMap.setInfoWindowAdapter(new Yourcustominfowindowadpater());
 
 
-        Button connectButton= (Button) mymarkerview.findViewById(R.id.butConncect);
-
+//        Button connectButton= (Button) mymarkerview.findViewById(R.id.butConncect);
 
 
         mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
@@ -86,21 +97,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             }
         });
 
-        Toast.makeText(MapsActivity.this,  "dom", Toast.LENGTH_SHORT).show();// display toast
+        Toast.makeText(MapsActivity.this, AccessPointsList.size() + " num", Toast.LENGTH_SHORT).show();// display toast
 
         mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
 
             @Override
             public boolean onMarkerClick(Marker arg0) {
-                if(arg0.getTitle().equals("wifi"))
+                if (arg0.getTitle().equals("wifi"))
                     arg0.showInfoWindow();
 
-                    return true;
+                return true;
             }
 
         });
 
     }
+
     private class Yourcustominfowindowadpater implements GoogleMap.InfoWindowAdapter {
 
         Yourcustominfowindowadpater() {
@@ -119,7 +131,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         private void render(final Marker marker, View view) {
 
-            Button connectButton= (Button) mymarkerview.findViewById(R.id.butConncect);
+            Button connectButton = (Button) mymarkerview.findViewById(R.id.butConncect);
 
             // Add the code to set the required values
             // for each element in your custominfowindow layout file
