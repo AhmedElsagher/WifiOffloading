@@ -151,9 +151,9 @@ public class IntroActivity extends AppCompatActivity
 
         } else if (v.getId() == automatic.getId()) {
 
-
+Log.e("TagIntro","intent service");
             Intent intent = new Intent(this, BIntentService.class);
-            intent.putParcelableArrayListExtra("arr", AccessPointsList);
+            intent.putParcelableArrayListExtra("tag", AccessPointsList);
             startService(intent);
         }
 
