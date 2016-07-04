@@ -34,7 +34,7 @@ import java.util.Iterator;
 import java.util.List;
 
 public class BIntentService extends Service {
-    private Integer etaTime;
+    private Integer etaTime;    //estimated time
     public LocationManager locationManager;
     public String stream;
     Thread readthread;
@@ -54,19 +54,21 @@ public class BIntentService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        locs = intent.getExtras().getParcelableArrayList("arr");
+        locs = intent.getExtras().getParcelableArrayList("tag");
+        Log.e("loop", locs.size()+  "locs");
 
 
         ConnectivityManager connManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         NetworkInfo mWifi = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
+        Location distination;
 
-
+//while fe internet
         while (mWifi.isConnected()) {
 
             getLocation();
             Log.e("TAGGGGGGGGGGG", "Service Started! " + myLocation.getLongitude());
 
-            Location distination = getNearestAccessPoint();
+            distination = getNearestAccessPoint();
             Log.e("TAGGGGGGGGGGG", "Service Started! " + distination.getLongitude());
 
             String urlString = "https://maps.googleapis.com/maps/api/distancematrix/json?"
@@ -78,7 +80,7 @@ public class BIntentService extends Service {
             JsonParse(stream);
             Log.e("TAGGGGGGGGGGG", "time " + etaTime);
 //            doSomeThing();
-            SystemClock.sleep(1000*5);
+//            SystemClock.sleep(60000);
             Log.e("TAGGGGGGGGGGG", "time sleep");
 
         }
@@ -159,16 +161,6 @@ public class BIntentService extends Service {
 
             etaTime=Integer.valueOf( duration.getString("value"));
 
-//            JSONObject element = array.getJSONObject(0);
-//            JSONObject duration = element.getJSONObject("duration");
-//
-//            JSONObject time = duration.getJSONObject("value");
-//            Log.e("GGGGGGG", "url " + time.toString());
-//
-//            etaTime = Double.valueOf(time.toString());
-//            Log.e("thread", reader.toString());
-//            Log.e("GGGGGGG", stream);
-//
         } catch (JSONException e) {
             e.printStackTrace();
         }
@@ -197,10 +189,12 @@ public class BIntentService extends Service {
     private Location getNearestAccessPoint() {
 //        Iterator it = locs.iterator();
         double distance = Double.MAX_VALUE;
-        Location location;
-        Location nearest = null;
+         Location nearest = null;
+        Location another;
+        Log.e("loop", locs.size()+  "locs");
+
         for (int i = 0; i < locs.size(); i++) {
-            Location another = (Location)locs.get(i);
+            another = (Location)locs.get(i);
             Log.e("loop", another.getLatitude() + "lat");
             if (distance > myLocation.distanceTo(another)) {
                 distance = myLocation.distanceTo(another);

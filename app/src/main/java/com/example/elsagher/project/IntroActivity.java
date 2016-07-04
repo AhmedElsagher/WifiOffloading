@@ -8,6 +8,8 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.telephony.TelephonyManager;
+import android.telephony.gsm.GsmCellLocation;
 import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
@@ -39,6 +41,7 @@ public class IntroActivity extends AppCompatActivity
     private Location myLocation;
     public LocationManager locationManager;
     private ArrayList<Location> AccessPointsList = new ArrayList<>();
+    private TelephonyManager mTelephonyManager;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -218,6 +221,50 @@ Log.e("TagIntro","intent service");
         } // ProcessJSON class end
 
 
+    }
+
+
+    public String getCellId() {
+        GsmCellLocation cl = (GsmCellLocation) mTelephonyManager.getCellLocation();
+        int cid = cl.getCid();
+        return cid+"";
+    }
+
+    public String getNetworkClass() {
+        int networkType = mTelephonyManager.getNetworkType();
+        switch (networkType) {
+            case TelephonyManager.NETWORK_TYPE_GPRS:
+                return "GPRS";
+            case TelephonyManager.NETWORK_TYPE_EDGE:
+                return "EDGE";
+            case TelephonyManager.NETWORK_TYPE_CDMA:
+                return "CDMA";
+            case TelephonyManager.NETWORK_TYPE_1xRTT:
+                return "RTT";
+            case TelephonyManager.NETWORK_TYPE_IDEN:
+                return "IDEN";
+            case TelephonyManager.NETWORK_TYPE_UMTS:
+                return "UMTS";
+            case TelephonyManager.NETWORK_TYPE_EVDO_0: return "EVDO_0";
+            case TelephonyManager.NETWORK_TYPE_EVDO_A:
+                return "EVDO_A";
+            case TelephonyManager.NETWORK_TYPE_HSDPA:
+                return "HSDPA";
+            case TelephonyManager.NETWORK_TYPE_HSUPA:
+                return "HSUPA";
+            case TelephonyManager.NETWORK_TYPE_HSPA:
+                return "HSPA";
+            case TelephonyManager.NETWORK_TYPE_EVDO_B:
+                return "EVDO_B";
+            case TelephonyManager.NETWORK_TYPE_EHRPD:
+                return "EHRPD";
+            case TelephonyManager.NETWORK_TYPE_HSPAP:
+                return "HSPAP";
+            case TelephonyManager.NETWORK_TYPE_LTE:
+                return "LTE";
+            default:
+                return "Unknown";
+        }
     }
 
     public void checkConnectivity() {

@@ -6,7 +6,14 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.net.ConnectivityManager;
+import android.net.wifi.SupplicantState;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiEnterpriseConfig;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.os.SystemClock;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
@@ -32,6 +39,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private View mymarkerview;
     private ArrayList<Location> AccessPointsList = new ArrayList<>();
+    WifiManager wifiManager;
+    boolean isWifi;
 
 
     @Override
@@ -42,10 +51,17 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
-        AccessPointsList =  getIntent().getExtras().getParcelableArrayList("tag");
+        AccessPointsList = getIntent().getExtras().getParcelableArrayList("tag");
         for (int i = 0; i < AccessPointsList.size(); i++) {
-            Log.e("tag2",AccessPointsList.get(i).getLatitude()+" lat");
+            Log.e("tag2", AccessPointsList.get(i).getLatitude() + " lat");
         }
+
+        wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        ConnectivityManager manager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
+                .isConnectedOrConnecting();
+
+
     }
 
 
@@ -66,50 +82,85 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         Location myLocation = null;
 
         for (String provider : providers) {
-
-
+            Log.e("provider", provider);
+//           if (provider != null) {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("permission", "not found");
             }
             myLocation = locationManager.getLastKnownLocation(provider);
+            Log.e("Taaaaaaaag", (myLocation == null) ? "null" : myLocation.toString());
 
         }
-        for (int i = 0; i < AccessPointsList.size(); i++) {
+
+
+        for (
+                int i = 0;
+                i < AccessPointsList.size(); i++)
+
+        {
             mMap.addMarker(new MarkerOptions().
-                position(new LatLng(AccessPointsList.get(i).getLatitude(), AccessPointsList.get(i).getLongitude()))
-                .title("wifi")
-                .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
+                    position(new LatLng(AccessPointsList.get(i).getLatitude(), AccessPointsList.get(i).getLongitude()))
+                    .title("wifi")
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)));
 
         }
 
+        //Log.e("taaaaaaaaag" , myLocation.toString());
         LatLng sydney = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
-        mMap.addMarker(new MarkerOptions().position(sydney).title("ur position"));
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 15));
-        mMap.setInfoWindowAdapter(new Yourcustominfowindowadpater());
+        mMap.addMarker(new
+
+                MarkerOptions()
+
+                .
+
+                        position(sydney)
+
+                .
+
+                        title("ur position")
+
+        );
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 10));
+        mMap.setInfoWindowAdapter(new
+
+                Yourcustominfowindowadpater()
+
+        );
 
 
 //        Button connectButton= (Button) mymarkerview.findViewById(R.id.butConncect);
 
 
-        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
-            @Override
-            public void onInfoWindowClick(Marker marker) {
-                Toast.makeText(MapsActivity.this, "connect to eap", Toast.LENGTH_SHORT).show();
-            }
-        });
+        mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener()
 
-        Toast.makeText(MapsActivity.this, AccessPointsList.size() + " num", Toast.LENGTH_SHORT).show();// display toast
+                                          {
+                                              @Override
+                                              public void onInfoWindowClick(Marker marker) {
+                                                  connectToPEAP();
+                                              }
+                                          }
 
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+        );
 
-            @Override
-            public boolean onMarkerClick(Marker arg0) {
-                if (arg0.getTitle().equals("wifi"))
-                    arg0.showInfoWindow();
+        Toast.makeText(MapsActivity.this, AccessPointsList.size() + " num", Toast.LENGTH_SHORT).
 
-                return true;
-            }
+                show();// display toast
 
-        });
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener()
+
+                                      {
+
+                                          @Override
+                                          public boolean onMarkerClick(Marker arg0) {
+                                              if (arg0.getTitle().equals("wifi"))
+                                                  arg0.showInfoWindow();
+
+                                              return true;
+                                          }
+
+                                      }
+
+        );
 
     }
 
@@ -136,6 +187,96 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             // Add the code to set the required values
             // for each element in your custominfowindow layout file
         }
+
+    }
+
+    private int ssidToNetworkId(String ssid) {
+
+        List<WifiConfiguration> currentNetworks = wifiManager.getConfiguredNetworks();
+        int networkId = -1;
+
+
+        // For each network in the list, compare the SSID with the given one
+        for (WifiConfiguration test : currentNetworks) {
+            if (!test.SSID.equals(ssid))
+                wifiManager.removeNetwork(test.networkId);
+
+
+            else
+                networkId = test.networkId;
+
+
+        }
+
+        return networkId;
+    }
+
+    @TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)
+    private void connectToPEAP() {
+
+        if (!isWifi) {
+            wifiManager.setWifiEnabled(true);
+        }
+        WifiEnterpriseConfig enterpriseConfig = new WifiEnterpriseConfig();
+        WifiConfiguration wifi = new WifiConfiguration();
+
+
+        wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+
+
+        wifi.SSID = "\"LinksysSMB24G\"";
+        wifi.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_EAP);
+        wifi.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.IEEE8021X);
+        //enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Eap.PEAP);
+        //enterpriseConfig.setEapMethod(WifiEnterpriseConfig.Phase2.GTC);
+
+
+        wifi.enterpriseConfig = enterpriseConfig;
+
+        enterpriseConfig.setIdentity("bob");
+        enterpriseConfig.setPassword("passbob");
+        enterpriseConfig.setEapMethod(0);
+        enterpriseConfig.setPhase2Method(4);
+
+        Log.e("Tag", "finding saved WiFi");
+        // wifi.networkId = ssidToNetworkId(wifi.SSID);
+
+        if (wifi.networkId == -1) {
+            Log.e("Tag", "WiFi not found - adding it.\n");
+            wifiManager.addNetwork(wifi);
+        } else {
+            Log.e("Tag", "WiFi found - updating it.\n");
+            wifiManager.updateNetwork(wifi);
+        }
+
+
+        Log.e("Tag", "saving config.\n");
+        wifiManager.saveConfiguration();
+
+        wifi.networkId = ssidToNetworkId(wifi.SSID);
+        Log.e("Tag", "wifi ID in device = " + wifi.networkId + "\n");
+
+        SupplicantState supState;
+        int networkIdToConnect = wifi.networkId;
+        if (networkIdToConnect >= 0) {
+            Log.e("Tag", "Start connecting...\n");
+
+            // We disable the network before connecting, because if this was the last connection before
+            // a disconnect(), this will not reconnect.
+            wifiManager.disableNetwork(networkIdToConnect);
+            wifiManager.enableNetwork(networkIdToConnect, true);
+
+
+            WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+            supState = wifiInfo.getSupplicantState();
+            SystemClock.sleep(3000);
+
+            Log.e("Tag", "WifiWizard: Done connect to network : status =  " + supState.toString());
+        } else {
+            Log.e("Tag", "WifiWizard: cannot connect to network");
+        }
+
+
     }
 
 }
