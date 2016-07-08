@@ -1,9 +1,12 @@
 package com.example.elsagher.project;
 
+import android.content.Context;
 import android.content.Intent;
 import android.location.Location;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.TrafficStats;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
@@ -29,8 +32,16 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.concurrent.ExecutionException;
 
 public class IntroActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener, View.OnClickListener {
@@ -38,10 +49,11 @@ public class IntroActivity extends AppCompatActivity
     private ConnectivityManager manager;
     private boolean isWifi;
     private boolean is3g;
-    private Location myLocation;
-    public LocationManager locationManager;
+    boolean isOnline;
     private ArrayList<Location> AccessPointsList = new ArrayList<>();
     private TelephonyManager mTelephonyManager;
+    double downloaded = 0.0;
+    private final int timesOfPing = 4;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,25 +61,38 @@ public class IntroActivity extends AppCompatActivity
         setContentView(R.layout.activity_intro);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
-
+        mTelephonyManager = (TelephonyManager)
+                this.getSystemService(Context.TELEPHONY_SERVICE);
         manual = (Button) findViewById(R.id.map_button);
         automatic = (Button) findViewById(R.id.con_button);
+        isOnline = checkConnectivity();
         manual.setOnClickListener(this);
         automatic.setOnClickListener(this);
-        new ProcessJSON().execute("http://wifioffloading.hol.es/sagher.php");
-        checkConnectivity();
-        Log.e("TAGGGGGGGGGGG", is3g + " wifi " + isWifi);
-
+        Log.e("TAGGGGGGGGGGG", "3g "+is3g + " wifi " + isWifi+" online "+isOnline);
+        if (isOnline) {
+            new RequestLocations().execute("http://wifioffloading.hol.es/sagher.php");
+            if (is3g) monitor3GNetwork();
+        }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
         drawer.setDrawerListener(toggle);
         toggle.syncState();
-
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
+    }
+
+    private void monitor3GNetwork() {
+        try {
+            new TestDownloadRate().execute("http://cdn.mos.cms.futurecdn.net/4b9cb8628154cd8853b655e20a71de05-650-80.jpg").get();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        new SendData().execute();
+
     }
 
     @Override
@@ -126,35 +151,19 @@ public class IntroActivity extends AppCompatActivity
         return true;
     }
 
-//    public void start(View v) {
-//        Intent intent = new Intent(this, MapsActivity.class);
-//        intent.putExtra("tag", AccessPointsList);
-//        startActivity(intent);
-//
-//    }
-
-//    public void autoConnect(View v) {
-//        Log.e("TAGGGGGGGGGGG", " autoConnect ");
-//
-//        Intent intent = new Intent(this, BIntentService.class);
-//        intent.putExtra("arr", AccessPointsList);
-//        startService(intent);
-//
-//    }
 
     @Override
     public void onClick(View v) {
-        if (v.getId() == manual.getId()) {
-
+        if (isOnline&&v.getId() == manual.getId()) {
 
 
             Intent intent = new Intent(this, MapsActivity.class);
             intent.putParcelableArrayListExtra("tag", AccessPointsList);
             startActivity(intent);
 
-        } else if (v.getId() == automatic.getId()) {
+        } else if (isOnline&&v.getId() == automatic.getId()) {
 
-Log.e("TagIntro","intent service");
+            Log.e("TagIntro", "intent service");
             Intent intent = new Intent(this, BIntentService.class);
             intent.putParcelableArrayListExtra("tag", AccessPointsList);
             startService(intent);
@@ -162,72 +171,65 @@ Log.e("TagIntro","intent service");
 
     }
 
-    private class ProcessJSON extends AsyncTask<String, Void, String> {
+    private class RequestLocations extends AsyncTask<String, Void, String> {
         protected String doInBackground(String... strings) {
             String stream = null;
             String urlString = strings[0];
             Log.e("TAGGGGGGGGGGG", "begin thread");
-
             HTTPDataHandler hh = new HTTPDataHandler();
             stream = hh.GetHTTPData(urlString);
-
-            // Return the data from specified url
             return stream;
         }
 
         protected void onPostExecute(String stream) {
-//            TextView tv = (TextView) findViewById(R.id.text);
-//            tv.append("  read  " + stream);
-//            //tv.setText(stream);
-
-            /*
-                Important in JSON DATA
-                -------------------------
-                * Square bracket ([) represents a JSON array
-                * Curly bracket ({) represents a JSON object
-                * JSON object contains key/value pairs
-                * Each key is a String and value may be different data types
-             */
-
-            //..........Process JSON DATA................
             if (stream != null) {
                 try {
                     // Get the full HTTP Data as JSONObject
                     JSONArray reader = new JSONArray(stream);
                     String lat, longitude;
-                     for (int i = 0; i < reader.length(); i++) {
-
+                    for (int i = 0; i < reader.length(); i++) {
                         JSONObject aa = reader.getJSONObject(i);
                         lat = aa.getString("latitude");
                         longitude = aa.getString("longitude");
                         Location loc = new Location("");
-
+                        Log.e("long ", longitude);
                         loc.setLatitude(Double.valueOf(lat));
                         loc.setLongitude(Double.valueOf(longitude));
                         AccessPointsList.add(loc);
 
                     }
-
-//
-//
-                    //
                 } catch (JSONException e) {
                     e.printStackTrace();
                 }
 
-//            } // if statement end
-            } // onPostExecute() end
+            }
+        }
+    }
 
-        } // ProcessJSON class end
+    private class SendData extends AsyncTask<String, Void, String> {
+        protected String doInBackground(String... strings) {
+            double ping = ping();
+            double downloadRate = downloaded;
+            String cellID = getCellId();
+            String networkType = getNetworkClass();
+            String operatorName = getOperatorName();
+            String urlString = ("http://wifioffloading.hol.es/monitoring.php?cellid=" +
+                    cellID + "&download=" + downloadRate +
+                    "&upload=" + (downloadRate / 8) + "&ping=" + ping + "&kind=" + networkType +
+                    "&operator=" + operatorName);
+            Log.e("TAGGGGGGGGGGG", "begin thread");
+            HTTPDataHandler hh = new HTTPDataHandler();
+            hh.GetHTTPData(urlString);
+            return null;
+        }
 
 
     }
 
-
     public String getCellId() {
         GsmCellLocation cl = (GsmCellLocation) mTelephonyManager.getCellLocation();
         int cid = cl.getCid();
-        return cid+"";
+        return cid + "";
     }
 
     public String getNetworkClass() {
@@ -245,7 +247,8 @@ Log.e("TagIntro","intent service");
                 return "IDEN";
             case TelephonyManager.NETWORK_TYPE_UMTS:
                 return "UMTS";
-            case TelephonyManager.NETWORK_TYPE_EVDO_0: return "EVDO_0";
+            case TelephonyManager.NETWORK_TYPE_EVDO_0:
+                return "EVDO_0";
             case TelephonyManager.NETWORK_TYPE_EVDO_A:
                 return "EVDO_A";
             case TelephonyManager.NETWORK_TYPE_HSDPA:
@@ -267,17 +270,117 @@ Log.e("TagIntro","intent service");
         }
     }
 
-    public void checkConnectivity() {
-        manager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+    private class TestDownloadRate extends AsyncTask<String, Void, Double> {
+        protected Double doInBackground(String... urls) {
+            // String uploaded = "";
+            try {
 
-//For 3G check
+                long BeforeTime = System.currentTimeMillis();
+                long TotalTxBeforeTest = TrafficStats.getTotalTxBytes();
+                long TotalRxBeforeTest = TrafficStats.getTotalRxBytes();
+                URL url = new URL(urls[0]);
+                URLConnection connection = new URL(urls[0]).openConnection();
+                connection.setUseCaches(false);
+                connection.connect();
+                InputStream input = connection.getInputStream();
+
+                BufferedInputStream bufferedInputStream = new BufferedInputStream(input);
+                byte[] buffer = new byte[1024];
+                int n = 0;
+                long endLoop = BeforeTime + 30000;
+                while (System.currentTimeMillis() < endLoop) {
+                    if (bufferedInputStream.read(buffer) == -1) {
+                        break;
+                    }
+                }
+                long TotalTxAfterTest = TrafficStats.getTotalTxBytes();
+                long TotalRxAfterTest = TrafficStats.getTotalRxBytes();
+                long AfterTime = System.currentTimeMillis();
+
+                double TimeDifference = AfterTime - BeforeTime;
+                double rxDiff = TotalRxAfterTest - TotalRxBeforeTest;
+                double txDiff = TotalTxAfterTest - TotalTxBeforeTest;
+                if ((rxDiff != 0) && (txDiff != 0)) {
+                    double rxBPS = (rxDiff / (TimeDifference / 1000)); // total rx bytes per second.
+                    double txBPS = (txDiff / (TimeDifference / 1000)); // total tx bytes per second.
+                    downloaded = (rxBPS / 1024);
+
+//                    uploaded = String.valueOf(txBPS) + "B/s. Total tx = " + txDiff;
+                    Log.e("TAGG", "Download speed. " + downloaded);
+
+                } else {
+                    downloaded = 0.0;
+                }
+            } catch (Exception e) {
+                Log.e("TAGG", "Error while downloading. " + e.getMessage());
+            }
+            return downloaded;
+        }
+
+        protected void onPostExecute(String stream) {
+
+        } // onPostExecute() end
+    } // class end
+
+    /*
+    checkConnectivity returns true if user is Online
+    and check mobile network and wifi status
+    assuming you have credit for 3g
+    and assume the wifi connection
+     */
+    public boolean checkConnectivity() {
+        manager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
         is3g = manager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE)
                 .isConnectedOrConnecting();
-//For WiFi Check
         isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
                 .isConnectedOrConnecting();
 
 
+        return is3g||isWifi;
+
     }
 
+
+    public String getOperatorName() {
+        String carrierName = mTelephonyManager.getNetworkOperatorName();
+        return carrierName;
+    }
+
+
+    public double ping() {
+        String str = "";
+        double sum = 0;
+        String url = "www.google.com";
+        for (int j = 0; j < timesOfPing; j++) {
+            try {
+
+                Process process = Runtime.getRuntime().exec(
+                        "/system/bin/ping -c 1 " + url);
+                BufferedReader reader = new BufferedReader(new InputStreamReader(
+                        process.getInputStream()));
+                int i;
+                char[] buffer = new char[4096];
+                StringBuffer output = new StringBuffer();
+
+                while ((i = reader.read(buffer)) > 0) {
+                    output.append(buffer, 0, i);
+                }
+
+                reader.close();
+
+                // body.append(output.toString()+"\n");
+                str = output.toString();
+
+            } catch (IOException e) {
+                // body.append("Error\n");
+                e.printStackTrace();
+            }
+            Log.e("loop times " + j, str);
+            String[] splitResult1 = str.split("time=");
+            String[] splitResult2 = splitResult1[1].split(" ");
+            sum += Double.valueOf(splitResult2[0]);
+
+        }
+        return sum / timesOfPing;
+    }
 }

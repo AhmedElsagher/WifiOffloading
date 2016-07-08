@@ -1,21 +1,18 @@
 package com.example.elsagher.project;
 
-import android.annotation.SuppressLint;
+import android.app.Dialog;
 import android.content.Intent;
-import android.os.SystemClock;
-import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
-import android.view.WindowManager;
+import android.widget.Button;
+import android.widget.ImageView;
 
-/**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
- */
+import com.squareup.picasso.Picasso;
+
+
 public class FullscreenActivity extends AppCompatActivity {
 
     @Override
@@ -24,27 +21,29 @@ public class FullscreenActivity extends AppCompatActivity {
         setContentView(R.layout.activity_fullscreen);
 
 
-        // Set up the user interaction to manually show or hide the system UI.
-//        mContentView.setOnClickListener(new View.OnClickListener() {
-//            @Override
-//            public void onClick(View view) {
-//                toggle();
-//            }
-//        });
-//
-//        requestWindowFeature(Window.FEATURE_NO_TITLE);
-//        getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
-//                WindowManager.LayoutParams.FLAG_FULLSCREEN);
-
-        new Handler().postDelayed(new Runnable() {
+        final Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.custom_dialog);
+        ImageView image = (ImageView) dialog.findViewById(R.id.image_ads);
+        Picasso.with(this).load("http://wifioffloading.hol.es/orange-tele.png").into(image);
+        Button dialogButton = (Button) dialog.findViewById(R.id.skip_ads);
+        // if button is clicked, close the custom dialog
+        dialogButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void run() {
-                /* Create an Intent that will start the Menu-Activity. */
-                Intent mainIntent = new Intent(FullscreenActivity.this, IntroActivity.class);
-                FullscreenActivity.this.startActivity(mainIntent);
-                FullscreenActivity.this.finish();
+            public void onClick(View v) {
+                dialog.dismiss();
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        Intent mainIntent = new Intent(FullscreenActivity.this, IntroActivity.class);
+                        FullscreenActivity.this.startActivity(mainIntent);
+                        FullscreenActivity.this.finish();
+                    }
+                }, 3000);
             }
-        }, 5000);
+        });
+
+        dialog.show();
 
 
     }

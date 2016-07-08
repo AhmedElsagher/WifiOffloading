@@ -14,12 +14,12 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.SystemClock;
+import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
 import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -39,27 +39,28 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private GoogleMap mMap;
     private View mymarkerview;
     private ArrayList<Location> AccessPointsList = new ArrayList<>();
-    WifiManager wifiManager;
+    private WifiManager wifiManager;
+    LocationManager mLocationManager;
+
     boolean isWifi;
+    ConnectivityManager mConnectivityManager;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
         AccessPointsList = getIntent().getExtras().getParcelableArrayList("tag");
-        for (int i = 0; i < AccessPointsList.size(); i++) {
-            Log.e("tag2", AccessPointsList.get(i).getLatitude() + " lat");
-        }
+        mLocationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
 
         wifiManager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        ConnectivityManager manager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-        isWifi = manager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
-                .isConnectedOrConnecting();
+
+        mConnectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        isWifi = mConnectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI)
+                .isAvailable();
 
 
     }
@@ -77,25 +78,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        LocationManager locationManager = (LocationManager) this.getSystemService(Context.LOCATION_SERVICE);
-        List<String> providers = locationManager.getProviders(true);
-        Location myLocation = null;
-
-        for (String provider : providers) {
-            Log.e("provider", provider);
-//           if (provider != null) {
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-                Log.e("permission", "not found");
-            }
-            myLocation = locationManager.getLastKnownLocation(provider);
-            Log.e("Taaaaaaaag", (myLocation == null) ? "null" : myLocation.toString());
-
-        }
+        Location myLocation = getLocation(mLocationManager);
 
 
-        for (
-                int i = 0;
-                i < AccessPointsList.size(); i++)
+        for (int i = 0; i < AccessPointsList.size(); i++)
 
         {
             mMap.addMarker(new MarkerOptions().
@@ -105,32 +91,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         }
 
-        //Log.e("taaaaaaaaag" , myLocation.toString());
-        LatLng sydney = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
-        mMap.addMarker(new
+        LatLng myLatLng;
 
-                MarkerOptions()
+        if (myLocation != null) {
+            myLatLng = new LatLng(myLocation.getLatitude(), myLocation.getLongitude());
 
-                .
+            mMap.addMarker(new MarkerOptions()
+                    .position(myLatLng)
+                    .title("ur position")
 
-                        position(sydney)
-
-                .
-
-                        title("ur position")
-
-        );
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(sydney, 10));
-        mMap.setInfoWindowAdapter(new
-
-                Yourcustominfowindowadpater()
-
-        );
-
-
-//        Button connectButton= (Button) mymarkerview.findViewById(R.id.butConncect);
-
-
+            );
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(myLatLng, 10));
+        }
+        mMap.setInfoWindowAdapter(new CustomInfoWindowAdpater());
         mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener()
 
                                           {
@@ -142,14 +115,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
         );
 
-        Toast.makeText(MapsActivity.this, AccessPointsList.size() + " num", Toast.LENGTH_SHORT).
+        Toast.makeText(MapsActivity.this, AccessPointsList.size() + " num", Toast.LENGTH_SHORT).show();// display toast
 
-                show();// display toast
-
-        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener()
-
-                                      {
-
+        mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
                                           @Override
                                           public boolean onMarkerClick(Marker arg0) {
                                               if (arg0.getTitle().equals("wifi"))
@@ -164,9 +132,26 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     }
 
-    private class Yourcustominfowindowadpater implements GoogleMap.InfoWindowAdapter {
+    @Nullable
+    private Location getLocation(LocationManager locationManager) {
+        List<String> providers = locationManager.getProviders(true);
+        Location myLocation;
+        for (String provider : providers) {
+            Log.e("provider", provider);
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                Log.e("permission", "not found");
+            }
+            myLocation = locationManager.getLastKnownLocation(provider);
+            if (myLocation != null)
+                return myLocation;
+            Log.e("Taaaaaaaag", (myLocation == null) ? "null" : myLocation.toString());
+        }
+        return null;
+    }
 
-        Yourcustominfowindowadpater() {
+    private class CustomInfoWindowAdpater implements GoogleMap.InfoWindowAdapter {
+
+        CustomInfoWindowAdpater() {
             mymarkerview = getLayoutInflater()
                     .inflate(R.layout.custom_info_window, null);
         }
@@ -181,11 +166,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         }
 
         private void render(final Marker marker, View view) {
-
-            Button connectButton = (Button) mymarkerview.findViewById(R.id.butConncect);
-
-            // Add the code to set the required values
-            // for each element in your custominfowindow layout file
         }
 
     }
@@ -260,9 +240,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         int networkIdToConnect = wifi.networkId;
         if (networkIdToConnect >= 0) {
             Log.e("Tag", "Start connecting...\n");
-
-            // We disable the network before connecting, because if this was the last connection before
-            // a disconnect(), this will not reconnect.
             wifiManager.disableNetwork(networkIdToConnect);
             wifiManager.enableNetwork(networkIdToConnect, true);
 
@@ -273,7 +250,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             Log.e("Tag", "WifiWizard: Done connect to network : status =  " + supState.toString());
         } else {
-            Log.e("Tag", "WifiWizard: cannot connect to network");
+            Toast.makeText(this, "out of reach network", Toast.LENGTH_SHORT).show();
         }
 
 
